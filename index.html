@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Lumen — Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   1. TOKENS — colors, type scale, spacing, radii, shadows, motion
+   ========================================================================== */
+:root{
+  --bg-0:#0a0b12;
+  --bg-1:#0e1018;
+  --bg-2:#12141f;
+  --glass:rgba(255,255,255,0.045);
+  --glass-strong:rgba(255,255,255,0.075);
+  --glass-border:rgba(255,255,255,0.09);
+  --hairline:rgba(255,255,255,0.06);
+  --text-0:#f2f3f8;
+  --text-1:#b7bacb;
+  --text-2:#767c93;
+  --accent-a:#8b7bff;   /* violet — add */
+  --accent-a-soft:rgba(139,123,255,0.16);
+  --accent-b:#57e0c9;   /* teal — subtract */
+  --accent-c:#ffb35a;   /* amber — multiply */
+  --accent-d:#ff7a8a;   /* coral — divide / clear */
+  --op-glow:var(--accent-a);
+  --grad-brand: linear-gradient(135deg, #8b7bff 0%, #57e0c9 100%);
+  --radius-l:28px;
+  --radius-m:18px;
+  --radius-s:12px;
+  --radius-xs:8px;
+  --shadow-deep: 0 30px 60px -20px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-soft: 0 10px 24px -12px rgba(0,0,0,0.5);
+  --shadow-key: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 18px -10px rgba(0,0,0,0.5);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --ease-spring: cubic-bezier(.34,1.56,.64,1);
+  --dur-fast: 120ms;
+  --dur-med: 240ms;
+  --dur-slow: 480ms;
+  --font-display:'Sora', system-ui, sans-serif;
+  --font-body:'Inter', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+}
+
+html[data-theme="light"]{
+  --bg-0:#eef0f6;
+  --bg-1:#e6e8f0;
+  --bg-2:#dde0ea;
+  --glass:rgba(255,255,255,0.55);
+  --glass-strong:rgba(255,255,255,0.75);
+  --glass-border:rgba(20,20,40,0.08);
+  --hairline:rgba(20,20,40,0.07);
+  --text-0:#181a24;
+  --text-1:#4a4e5e;
+  --text-2:#83879a;
+  --shadow-deep: 0 30px 60px -25px rgba(30,30,60,0.25), 0 2px 6px rgba(30,30,60,0.08);
+  --shadow-soft: 0 10px 24px -14px rgba(30,30,60,0.22);
+  --shadow-key: 0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 16px -10px rgba(30,30,60,0.18);
+}
+
+/* Accent theme variants (selectable) */
+html[data-accent="sunset"]{ --accent-a:#ff8a5c; --accent-b:#ffcf5c; --grad-brand:linear-gradient(135deg,#ff8a5c,#ffcf5c); }
+html[data-accent="ocean"]{ --accent-a:#5ca0ff; --accent-b:#5cf0e0; --grad-brand:linear-gradient(135deg,#5ca0ff,#5cf0e0); }
+html[data-accent="violet"]{ --accent-a:#8b7bff; --accent-b:#57e0c9; --grad-brand:linear-gradient(135deg,#8b7bff,#57e0c9); }
+html[data-accent="rose"]{ --accent-a:#ff6fa5; --accent-b:#ffb35a; --grad-brand:linear-gradient(135deg,#ff6fa5,#ffb35a); }
+
+/* ==========================================================================
+   2. RESET & BASE
+   ========================================================================== */
+*,*::before,*::after{ box-sizing:border-box; }
+*{ margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  font-family:var(--font-body);
+  background:
+    radial-gradient(1100px 700px at 15% 0%, rgba(139,123,255,0.10), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(87,224,201,0.08), transparent 55%),
+    var(--bg-0);
+  color:var(--text-0);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow-x:hidden;
+  transition:background var(--dur-slow) var(--ease-out), color var(--dur-med) var(--ease-out);
+  -webkit-font-smoothing:antialiased;
+}
+button{ font-family:inherit; border:none; background:none; color:inherit; cursor:pointer; }
+button:focus-visible, [tabindex]:focus-visible, input:focus-visible{
+  outline:2px solid var(--accent-a);
+  outline-offset:2px;
+}
+::selection{ background:var(--accent-a-soft); }
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-thumb{ background:var(--glass-border); border-radius:8px; }
+::-webkit-scrollbar-track{ background:transparent; }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+}
+
+/* ==========================================================================
+   3. APP SHELL / LOAD ANIMATION
+   ========================================================================== */
+.app{
+  display:flex;
+  gap:20px;
+  align-items:stretch;
+  padding:28px;
+  width:100%;
+  max-width:1180px;
+  animation:app-in 680ms var(--ease-out) both;
+}
+@keyframes app-in{
+  from{ opacity:0; transform:translateY(18px) scale(0.985); }
+  to{ opacity:1; transform:none; }
+}
+
+/* ==========================================================================
+   4. CALCULATOR CARD
+   ========================================================================== */
+.calculator{
+  position:relative;
+  width:420px;
+  flex-shrink:0;
+  border-radius:var(--radius-l);
+  background:linear-gradient(180deg, var(--glass-strong), var(--glass));
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(28px) saturate(140%);
+  -webkit-backdrop-filter:blur(28px) saturate(140%);
+  box-shadow:var(--shadow-deep);
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  transition:width var(--dur-med) var(--ease-out);
+}
+.calculator.compact{ width:340px; }
+
+/* -- top bar -- */
+.topbar{ display:flex; align-items:center; justify-content:space-between; padding:2px 4px 0; }
+.brand{ display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.02em; color:var(--text-1); }
+.brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--grad-brand); box-shadow:0 0 12px var(--accent-a); }
+.icon-row{ display:flex; gap:4px; }
+.icon-btn{
+  width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  color:var(--text-1); transition:background var(--dur-fast) var(--ease-out), color var(--dur-fast), transform var(--dur-fast);
+}
+.icon-btn:hover{ background:var(--glass-strong); color:var(--text-0); }
+.icon-btn:active{ transform:scale(0.9); }
+.icon-btn svg{ width:16px; height:16px; }
+
+/* -- display -- */
+.display{
+  position:relative;
+  border-radius:var(--radius-m);
+  padding:22px 20px 18px;
+  background:linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.08));
+  border:1px solid var(--hairline);
+  box-shadow:inset 0 2px 10px rgba(0,0,0,0.3);
+  min-height:118px;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  gap:6px;
+  overflow:hidden;
+}
+html[data-theme="light"] .display{ background:linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02)); box-shadow:inset 0 2px 8px rgba(30,30,60,0.08); }
+.display-mode{
+  position:absolute; top:12px; left:20px; font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--text-2); font-weight:600;
+}
+.expression{
+  font-family:var(--font-mono);
+  font-size:15px;
+  color:var(--text-1);
+  min-height:20px;
+  white-space:nowrap;
+  overflow-x:auto;
+  scrollbar-width:none;
+  letter-spacing:0.01em;
+}
+.expression::-webkit-scrollbar{ display:none; }
+.result{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:44px;
+  line-height:1.05;
+  text-align:right;
+  white-space:nowrap;
+  overflow-x:auto;
+  scrollbar-width:none;
+  color:var(--text-0);
+  letter-spacing:-0.01em;
+}
+.result::-webkit-scrollbar{ display:none; }
+.result.error{ color:var(--accent-d); font-size:22px; }
+.display .glow-bar{
+  position:absolute; left:0; right:0; bottom:0; height:3px;
+  background:var(--grad-brand);
+  opacity:0.85;
+  transform:scaleX(0.3);
+  transform-origin:left;
+  transition:transform 320ms var(--ease-spring), background 220ms ease;
+}
+
+/* -- memory row -- */
+.memrow{ display:flex; gap:6px; }
+.memrow button{
+  flex:1;
+  font-size:11px; font-weight:600; letter-spacing:0.02em;
+  padding:8px 0;
+  border-radius:var(--radius-xs);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+  color:var(--text-1);
+  transition:background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
+}
+.memrow button:hover{ background:var(--glass-strong); color:var(--text-0); }
+.memrow button:active{ transform:scale(0.94); }
+.memrow button.has-value{ color:var(--accent-a); border-color:var(--accent-a-soft); }
+
+/* -- scientific panel -- */
+.sci-panel{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+  max-height:0;
+  opacity:0;
+  overflow:hidden;
+  transition:max-height 380ms var(--ease-out), opacity 260ms var(--ease-out), margin 380ms var(--ease-out);
+}
+.sci-panel.open{ max-height:260px; opacity:1; }
+.sci-panel button{
+  padding:10px 0;
+  font-size:12.5px;
+  font-weight:500;
+  border-radius:var(--radius-xs);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+  color:var(--text-1);
+  transition:background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
+}
+.sci-panel button:hover{ background:var(--glass-strong); color:var(--text-0); }
+.sci-panel button:active{ transform:scale(0.92); }
+
+/* -- keypad -- */
+.keypad{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.key{
+  position:relative;
+  overflow:hidden;
+  height:60px;
+  border-radius:var(--radius-s);
+  font-family:var(--font-display);
+  font-size:19px;
+  font-weight:600;
+  color:var(--text-0);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+  box-shadow:var(--shadow-key);
+  transition:transform 110ms var(--ease-spring), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast);
+}
+.key:hover{ background:var(--glass-strong); }
+.key:active{ transform:scale(0.94) translateY(1px); }
+.key.span-2{ grid-column:span 2; }
+.key.fn{ font-size:15px; font-weight:500; color:var(--text-1); }
+.key.op{
+  color:var(--accent-a);
+  background:linear-gradient(180deg, var(--accent-a-soft), transparent);
+}
+.key.op:hover{ background:linear-gradient(180deg, rgba(139,123,255,0.28), rgba(139,123,255,0.06)); }
+.key.equals{
+  background:var(--grad-brand);
+  color:#0a0b12;
+  font-weight:700;
+  box-shadow:0 12px 26px -10px rgba(139,123,255,0.55);
+}
+.key.equals:hover{ filter:brightness(1.06); }
+.key.clear{ color:var(--accent-d); }
+.key .ripple{
+  position:absolute; border-radius:50%; pointer-events:none;
+  background:rgba(255,255,255,0.35); transform:scale(0); opacity:0.6;
+  animation:ripple 560ms var(--ease-out) forwards;
+}
+html[data-theme="light"] .key.equals .ripple{ background:rgba(0,0,0,0.2); }
+@keyframes ripple{ to{ transform:scale(3.2); opacity:0; } }
+
+/* number bump / counting animation target */
+.result .digit-flip{ display:inline-block; animation:digit-in 220ms var(--ease-out); }
+@keyframes digit-in{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+
+/* toggle sci button row */
+.util-row{ display:flex; gap:8px; }
+.util-row button{
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:9px 0;
+  font-size:12px; font-weight:600; letter-spacing:0.02em;
+  border-radius:var(--radius-xs);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+  color:var(--text-1);
+  transition:background var(--dur-fast), color var(--dur-fast);
+}
+.util-row button:hover{ background:var(--glass-strong); color:var(--text-0); }
+.util-row button.active{ color:var(--accent-a); border-color:var(--accent-a-soft); background:var(--accent-a-soft); }
+.util-row svg{ width:13px; height:13px; }
+
+/* ==========================================================================
+   5. HISTORY SIDEBAR
+   ========================================================================== */
+.history-panel{
+  width:300px;
+  border-radius:var(--radius-l);
+  background:linear-gradient(180deg, var(--glass-strong), var(--glass));
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(28px) saturate(140%);
+  -webkit-backdrop-filter:blur(28px) saturate(140%);
+  box-shadow:var(--shadow-deep);
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  transform-origin:left center;
+  transition:transform 380ms var(--ease-out), opacity 300ms var(--ease-out), width 380ms var(--ease-out), margin 380ms var(--ease-out), padding 380ms var(--ease-out);
+}
+.history-panel.hidden{
+  width:0; padding-left:0; padding-right:0; border-width:0;
+  opacity:0; transform:scale(0.94) translateX(-16px); pointer-events:none;
+}
+.history-head{ display:flex; align-items:center; justify-content:space-between; }
+.history-head h2{ font-family:var(--font-display); font-size:15px; font-weight:700; }
+.history-head-btns{ display:flex; gap:4px; }
+.history-search{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px;
+  border-radius:var(--radius-xs);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+}
+.history-search svg{ width:14px; height:14px; color:var(--text-2); flex-shrink:0; }
+.history-search input{
+  background:none; border:none; color:var(--text-0); font-size:13px; width:100%;
+}
+.history-search input::placeholder{ color:var(--text-2); }
+
+.history-list{ display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1; padding-right:2px; min-height:120px; }
+.history-item{
+  position:relative;
+  border-radius:var(--radius-xs);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+  padding:10px 12px;
+  cursor:pointer;
+  animation:item-in 300ms var(--ease-out) both;
+  transition:background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
+}
+.history-item:hover{ background:var(--glass-strong); transform:translateX(2px); }
+@keyframes item-in{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:none; } }
+.history-item .h-expr{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-2); margin-bottom:2px; word-break:break-all; }
+.history-item .h-result{ font-family:var(--font-display); font-size:17px; font-weight:700; color:var(--text-0); }
+.history-item .h-actions{
+  position:absolute; top:8px; right:8px; display:flex; gap:2px;
+  opacity:0; transition:opacity var(--dur-fast);
+}
+.history-item:hover .h-actions{ opacity:1; }
+.h-actions button{ width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--text-2); }
+.h-actions button:hover{ background:var(--glass-strong); color:var(--text-0); }
+.h-actions svg{ width:12px; height:12px; }
+.history-item.pinned{ border-color:var(--accent-c); }
+.history-item.pinned .h-actions .pin-btn{ color:var(--accent-c); }
+
+.history-empty{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  color:var(--text-2); text-align:center; padding:30px 10px;
+}
+.history-empty svg{ width:38px; height:38px; opacity:0.5; }
+.history-empty p{ font-size:12.5px; line-height:1.5; }
+
+.history-footer{ display:flex; gap:8px; }
+.history-footer button{
+  flex:1; padding:9px 0; font-size:11.5px; font-weight:600; border-radius:var(--radius-xs);
+  background:var(--glass); border:1px solid var(--hairline); color:var(--text-1);
+  transition:background var(--dur-fast), color var(--dur-fast);
+}
+.history-footer button:hover{ background:var(--glass-strong); color:var(--text-0); }
+
+/* ==========================================================================
+   6. SETTINGS DRAWER + COMMAND PALETTE (overlays)
+   ========================================================================== */
+.overlay-scrim{
+  position:fixed; inset:0; background:rgba(4,5,10,0.55); backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none; transition:opacity var(--dur-med) var(--ease-out); z-index:40;
+}
+.overlay-scrim.show{ opacity:1; pointer-events:auto; }
+
+.settings-drawer{
+  position:fixed; top:0; right:0; height:100%; width:320px; max-width:88vw;
+  background:linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border-left:1px solid var(--glass-border);
+  box-shadow:var(--shadow-deep);
+  padding:24px; z-index:50;
+  transform:translateX(100%); transition:transform 380ms var(--ease-out);
+  overflow-y:auto;
+}
+.settings-drawer.show{ transform:translateX(0); }
+.settings-drawer h2{ font-family:var(--font-display); font-size:17px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; }
+.setting-group{ margin-bottom:22px; }
+.setting-group label{ display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-2); margin-bottom:10px; }
+.swatches{ display:flex; gap:10px; }
+.swatch{ width:32px; height:32px; border-radius:50%; border:2px solid transparent; transition:transform var(--dur-fast), border-color var(--dur-fast); }
+.swatch:hover{ transform:scale(1.1); }
+.swatch.active{ border-color:var(--text-0); }
+.swatch.violet{ background:linear-gradient(135deg,#8b7bff,#57e0c9); }
+.swatch.sunset{ background:linear-gradient(135deg,#ff8a5c,#ffcf5c); }
+.swatch.ocean{ background:linear-gradient(135deg,#5ca0ff,#5cf0e0); }
+.swatch.rose{ background:linear-gradient(135deg,#ff6fa5,#ffb35a); }
+.seg{ display:flex; background:var(--glass); border:1px solid var(--hairline); border-radius:var(--radius-xs); padding:3px; gap:3px; }
+.seg button{ flex:1; padding:7px 0; font-size:12px; font-weight:600; border-radius:8px; color:var(--text-1); }
+.seg button.active{ background:var(--grad-brand); color:#0a0b12; }
+.slider-row{ display:flex; align-items:center; gap:10px; }
+.slider-row input[type=range]{ flex:1; accent-color:var(--accent-a); }
+.slider-row span{ font-size:12px; color:var(--text-1); width:20px; text-align:right; }
+.toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:2px 0; }
+.toggle-row span{ font-size:13px; color:var(--text-1); }
+.switch{ width:38px; height:22px; border-radius:20px; background:var(--glass); border:1px solid var(--hairline); position:relative; transition:background var(--dur-fast); }
+.switch::after{ content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-1); transition:transform var(--dur-fast) var(--ease-spring), background var(--dur-fast); }
+.switch.on{ background:var(--accent-a-soft); border-color:var(--accent-a); }
+.switch.on::after{ transform:translateX(16px); background:var(--accent-a); }
+
+.cmdk-wrap{
+  position:fixed; top:14%; left:50%; transform:translateX(-50%) translateY(-10px);
+  width:min(560px,90vw); z-index:60; opacity:0; pointer-events:none;
+  transition:opacity var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
+}
+.cmdk-wrap.show{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+.cmdk-box{
+  background:linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-m);
+  box-shadow:var(--shadow-deep);
+  overflow:hidden;
+}
+.cmdk-input-row{ display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid var(--hairline); }
+.cmdk-input-row svg{ width:16px; height:16px; color:var(--text-2); }
+.cmdk-input-row input{ flex:1; background:none; border:none; font-size:15px; color:var(--text-0); }
+.cmdk-list{ max-height:320px; overflow-y:auto; padding:8px; }
+.cmdk-item{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:var(--radius-xs); font-size:13.5px; color:var(--text-1); cursor:pointer; }
+.cmdk-item:hover, .cmdk-item.sel{ background:var(--glass-strong); color:var(--text-0); }
+.cmdk-item kbd{ font-size:10.5px; color:var(--text-2); background:var(--glass); padding:2px 6px; border-radius:5px; border:1px solid var(--hairline); }
+
+/* toast */
+.toast{
+  position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(16px);
+  background:var(--bg-2); border:1px solid var(--glass-border); color:var(--text-0);
+  padding:10px 18px; border-radius:var(--radius-s); font-size:13px; box-shadow:var(--shadow-soft);
+  opacity:0; pointer-events:none; transition:opacity var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
+  z-index:70;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ==========================================================================
+   7. RESPONSIVE
+   ========================================================================== */
+@media (max-width: 820px){
+  .app{ flex-direction:column; align-items:center; padding:16px; }
+  .calculator{ width:100%; max-width:420px; }
+  .history-panel{ width:100%; max-width:420px; }
+  .history-panel.hidden{ width:100%; max-height:0; padding:0; opacity:0; }
+}
+@media (max-width: 420px){
+  .key{ height:54px; font-size:17px; }
+  .result{ font-size:34px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= HISTORY SIDEBAR ================= -->
+  <aside class="history-panel hidden" id="historyPanel" aria-label="Calculation history">
+    <div class="history-head">
+      <h2>History</h2>
+      <div class="history-head-btns">
+        <button class="icon-btn" id="exportHistory" title="Export history as JSON" aria-label="Export history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        </button>
+        <button class="icon-btn" id="importHistory" title="Import history" aria-label="Import history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9m0 0l-4 4m4-4l4 4M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2"/></svg>
+        </button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+    </div>
+    <div class="history-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="historySearch" placeholder="Search history…" aria-label="Search history">
+    </div>
+    <div class="history-list" id="historyList"></div>
+    <div class="history-footer">
+      <button id="clearHistory">Clear all</button>
+    </div>
+  </aside>
+
+  <!-- ================= CALCULATOR ================= -->
+  <main class="calculator" id="calculator" role="application" aria-label="Calculator">
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span> Lumen</div>
+      <div class="icon-row">
+        <button class="icon-btn" id="historyToggle" title="Toggle history (Ctrl+H)" aria-label="Toggle history panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+        </button>
+        <button class="icon-btn" id="cmdkToggle" title="Command palette (Ctrl+K)" aria-label="Open command palette">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+        </button>
+        <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIcon"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+        <button class="icon-btn" id="settingsToggle" title="Settings" aria-label="Open settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H2a2 2 0 010-4h.09A1.65 1.65 0 003.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H8a1.65 1.65 0 001-1.51V2a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V8c.36.41.86.69 1.51 1H22a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="display" id="displayBox">
+      <span class="display-mode" id="displayMode">DEG</span>
+      <div class="expression" id="expression" aria-live="off"></div>
+      <div class="result" id="result" aria-live="polite">0</div>
+      <div class="glow-bar" id="glowBar"></div>
+    </div>
+
+    <div class="memrow">
+      <button id="mc" title="Memory clear">MC</button>
+      <button id="mr" title="Memory recall">MR</button>
+      <button id="mplus" title="Memory add">M+</button>
+      <button id="mminus" title="Memory subtract">M−</button>
+      <button id="ms" title="Memory store">MS</button>
+    </div>
+
+    <div class="util-row">
+      <button id="sciToggle" aria-expanded="false" aria-controls="sciPanel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v6l-4 9a2 2 0 002 3h16a2 2 0 002-3l-4-9V3"/><path d="M6 3h12M9 12h6"/></svg>
+        Scientific
+      </button>
+      <button id="degToggle" title="Toggle degrees/radians">DEG</button>
+      <button id="undoBtn" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6M3 13a9 9 0 1017-4.5"/></svg>
+        Undo
+      </button>
+    </div>
+
+    <div class="sci-panel" id="sciPanel">
+      <button data-insert="sin(">sin</button>
+      <button data-insert="cos(">cos</button>
+      <button data-insert="tan(">tan</button>
+      <button data-insert="sinh(">sinh</button>
+      <button data-insert="cosh(">cosh</button>
+      <button data-insert="tanh(">tanh</button>
+      <button data-insert="log(">log</button>
+      <button data-insert="ln(">ln</button>
+      <button data-insert="√(">√</button>
+      <button data-func="nthroot">ⁿ√</button>
+      <button data-insert="(">( )</button>
+      <button data-insert="π">π</button>
+      <button data-insert="e">e</button>
+      <button data-func="abs">|x|</button>
+      <button data-func="rand">rand</button>
+      <button data-func="square">x²</button>
+      <button data-func="cube">x³</button>
+      <button data-insert="^">xʸ</button>
+      <button data-func="fact">x!</button>
+      <button data-func="inv">1/x</button>
+    </div>
+
+    <div class="keypad">
+      <button class="key clear" data-action="ac">AC</button>
+      <button class="key fn" data-action="ce">CE</button>
+      <button class="key fn" data-action="percent">%</button>
+      <button class="key op" data-insert="/">÷</button>
+
+      <button class="key" data-insert="7">7</button>
+      <button class="key" data-insert="8">8</button>
+      <button class="key" data-insert="9">9</button>
+      <button class="key op" data-insert="*">×</button>
+
+      <button class="key" data-insert="4">4</button>
+      <button class="key" data-insert="5">5</button>
+      <button class="key" data-insert="6">6</button>
+      <button class="key op" data-insert="-">−</button>
+
+      <button class="key" data-insert="1">1</button>
+      <button class="key" data-insert="2">2</button>
+      <button class="key" data-insert="3">3</button>
+      <button class="key op" data-insert="+">+</button>
+
+      <button class="key fn" data-action="sign">±</button>
+      <button class="key" data-insert="0">0</button>
+      <button class="key" data-insert=".">.</button>
+      <button class="key equals span-1" data-action="equals">=</button>
+    </div>
+  </main>
+</div>
+
+<!-- ================= SETTINGS DRAWER ================= -->
+<div class="overlay-scrim" id="scrim"></div>
+<aside class="settings-drawer" id="settingsDrawer" aria-label="Settings">
+  <h2>Settings
+    <button class="icon-btn" id="closeSettings" aria-label="Close settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </h2>
+
+  <div class="setting-group">
+    <label>Accent theme</label>
+    <div class="swatches">
+      <button class="swatch violet active" data-accent="violet" aria-label="Violet accent"></button>
+      <button class="swatch sunset" data-accent="sunset" aria-label="Sunset accent"></button>
+      <button class="swatch ocean" data-accent="ocean" aria-label="Ocean accent"></button>
+      <button class="swatch rose" data-accent="rose" aria-label="Rose accent"></button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>Appearance</label>
+    <div class="seg">
+      <button data-theme-mode="dark" class="active">Dark</button>
+      <button data-theme-mode="light">Light</button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>Layout density</label>
+    <div class="seg">
+      <button data-density="cozy" class="active">Cozy</button>
+      <button data-density="compact">Compact</button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>Decimal precision — <span id="precisionVal">8</span></label>
+    <div class="slider-row">
+      <input type="range" id="precisionSlider" min="0" max="14" value="8">
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <div class="toggle-row">
+      <span>Sound effects</span>
+      <button class="switch" id="soundSwitch" role="switch" aria-checked="false"></button>
+    </div>
+    <div class="toggle-row" style="margin-top:12px;">
+      <span>Haptic-style key feedback</span>
+      <button class="switch on" id="hapticSwitch" role="switch" aria-checked="true"></button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>Keyboard shortcuts</label>
+    <div style="font-size:12px; color:var(--text-1); line-height:2;">
+      <div>Enter — evaluate</div>
+      <div>Esc — clear all</div>
+      <div>Backspace — delete</div>
+      <div>Ctrl+H — toggle history</div>
+      <div>Ctrl+K — command palette</div>
+      <div>Ctrl+Z — undo</div>
+      <div>Ctrl+C — copy result</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ================= COMMAND PALETTE ================= -->
+<div class="cmdk-wrap" id="cmdkWrap">
+  <div class="cmdk-box">
+    <div class="cmdk-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="cmdkInput" placeholder="Type a command…" autocomplete="off">
+    </div>
+    <div class="cmdk-list" id="cmdkList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ==========================================================================
+   MODULE: MathParser — recursive-descent evaluator
+   Grammar:
+     expr    := term (('+'|'-') term)*
+     term    := power (('*'|'/'|'%') power)*
+     power   := unary ('^' power)?          // right-assoc
+     unary   := ('-'|'+')? postfix
+     postfix := primary ('!')*
+     primary := NUMBER | CONST | FUNC '(' expr (',' expr)? ')' | '(' expr ')'
+   ========================================================================== */
+class MathParser{
+  constructor(text, angleMode){
+    this.tokens = this.tokenize(text);
+    this.pos = 0;
+    this.angleMode = angleMode; // 'DEG' | 'RAD'
+  }
+  tokenize(text){
+    const s = text.replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+    const tokens = [];
+    let i = 0;
+    const funcs = ['sinh','cosh','tanh','asinh','acosh','atanh','sin','cos','tan','log','ln','sqrt','abs','cbrt'];
+    while(i < s.length){
+      const c = s[i];
+      if(/\s/.test(c)){ i++; continue; }
+      if(/[0-9.]/.test(c)){
+        let j = i;
+        while(j < s.length && /[0-9.]/.test(s[j])) j++;
+        tokens.push({t:'num', v:parseFloat(s.slice(i,j))});
+        i = j; continue;
+      }
+      let matchedFunc = null;
+      for(const f of funcs){
+        if(s.slice(i, i+f.length).toLowerCase() === f){ matchedFunc = f; break; }
+      }
+      if(matchedFunc){ tokens.push({t:'func', v:matchedFunc}); i += matchedFunc.length; continue; }
+      if(s.slice(i,i+2) === 'pi'){ tokens.push({t:'num', v:Math.PI}); i+=2; continue; }
+      if(c === 'e' && !/[a-zA-Z]/.test(s[i+1]||'')){ tokens.push({t:'num', v:Math.E}); i++; continue; }
+      if('+-*/%^()!,'.includes(c)){ tokens.push({t:'op', v:c}); i++; continue; }
+      throw new Error('Unexpected character: ' + c);
+    }
+    return tokens;
+  }
+  peek(){ return this.tokens[this.pos]; }
+  next(){ return this.tokens[this.pos++]; }
+  parse(){
+    if(this.tokens.length === 0) return 0;
+    const v = this.expr();
+    if(this.pos < this.tokens.length) throw new Error('Unexpected token');
+    return v;
+  }
+  expr(){
+    let v = this.term();
+    while(this.peek() && this.peek().t==='op' && (this.peek().v==='+' || this.peek().v==='-')){
+      const op = this.next().v;
+      const r = this.term();
+      v = op==='+' ? v + r : v - r;
+    }
+    return v;
+  }
+  term(){
+    let v = this.power();
+    while(this.peek() && this.peek().t==='op' && (this.peek().v==='*' || this.peek().v==='/' || this.peek().v==='%')){
+      const op = this.next().v;
+      const r = this.power();
+      if(op==='*') v = v * r;
+      else if(op==='/'){ if(r===0) throw new Error('Division by zero'); v = v / r; }
+      else v = v % r;
+    }
+    return v;
+  }
+  power(){
+    const base = this.unary();
+    if(this.peek() && this.peek().t==='op' && this.peek().v==='^'){
+      this.next();
+      const exp = this.power();
+      return Math.pow(base, exp);
+    }
+    return base;
+  }
+  unary(){
+    if(this.peek() && this.peek().t==='op' && (this.peek().v==='-' || this.peek().v==='+')){
+      const op = this.next().v;
+      const v = this.unary();
+      return op==='-' ? -v : v;
+    }
+    return this.postfix();
+  }
+  postfix(){
+    let v = this.primary();
+    while(this.peek() && this.peek().t==='op' && this.peek().v==='!'){
+      this.next();
+      v = MathParser.factorial(v);
+    }
+    return v;
+  }
+  primary(){
+    const tok = this.peek();
+    if(!tok) throw new Error('Unexpected end of expression');
+    if(tok.t==='num'){ this.next(); return tok.v; }
+    if(tok.t==='func'){
+      this.next();
+      if(!(this.peek() && this.peek().v==='(')) throw new Error('Expected ( after function');
+      this.next();
+      const arg = this.expr();
+      let arg2 = null;
+      if(this.peek() && this.peek().v===','){ this.next(); arg2 = this.expr(); }
+      if(!(this.peek() && this.peek().v===')')) throw new Error('Expected )');
+      this.next();
+      return this.applyFunc(tok.v, arg, arg2);
+    }
+    if(tok.v==='('){
+      this.next();
+      const v = this.expr();
+      if(!(this.peek() && this.peek().v===')')) throw new Error('Expected )');
+      this.next();
+      return v;
+    }
+    throw new Error('Unexpected token');
+  }
+  toRad(x){ return this.angleMode==='DEG' ? x * Math.PI/180 : x; }
+  applyFunc(name, x, y){
+    switch(name){
+      case 'sin': return Math.sin(this.toRad(x));
+      case 'cos': return Math.cos(this.toRad(x));
+      case 'tan': return Math.tan(this.toRad(x));
+      case 'sinh': return Math.sinh(x);
+      case 'cosh': return Math.cosh(x);
+      case 'tanh': return Math.tanh(x);
+      case 'log': return Math.log10(x);
+      case 'ln': return Math.log(x);
+      case 'sqrt': if(x<0) throw new Error('Invalid input'); return Math.sqrt(x);
+      case 'cbrt': return Math.cbrt(x);
+      case 'abs': return Math.abs(x);
+      default: throw new Error('Unknown function');
+    }
+  }
+  static factorial(n){
+    if(n < 0 || !Number.isInteger(n)) throw new Error('Invalid factorial');
+    if(n > 170) throw new Error('Overflow');
+    let r = 1;
+    for(let i=2;i<=n;i++) r*=i;
+    return r;
+  }
+}
+
+/* ==========================================================================
+   MODULE: HistoryStore — persistence + CRUD
+   ========================================================================== */
+class HistoryStore{
+  constructor(key){ this.key = key; this.items = this.load(); }
+  load(){ try{ return JSON.parse(localStorage.getItem(this.key)) || []; }catch(e){ return []; } }
+  save(){ localStorage.setItem(this.key, JSON.stringify(this.items)); }
+  add(expression, result){
+    const entry = { id: Date.now()+'-'+Math.random().toString(36).slice(2,7), expression, result, pinned:false, ts:Date.now() };
+    this.items.unshift(entry);
+    if(this.items.length > 200) this.items.pop();
+    this.save();
+    return entry;
+  }
+  remove(id){ this.items = this.items.filter(i=>i.id!==id); this.save(); }
+  clear(){ this.items = this.items.filter(i=>i.pinned); this.save(); }
+  togglePin(id){ const it = this.items.find(i=>i.id===id); if(it){ it.pinned = !it.pinned; this.save(); } }
+  search(q){
+    if(!q) return this.items;
+    const lower = q.toLowerCase();
+    return this.items.filter(i => i.expression.toLowerCase().includes(lower) || String(i.result).toLowerCase().includes(lower));
+  }
+  export(){ return JSON.stringify(this.items, null, 2); }
+  import(json){
+    try{
+      const parsed = JSON.parse(json);
+      if(Array.isArray(parsed)){ this.items = parsed.concat(this.items); this.save(); return true; }
+    }catch(e){}
+    return false;
+  }
+}
+
+/* ==========================================================================
+   STATE
+   ========================================================================== */
+const state = {
+  expression: '',
+  lastResult: null,
+  memory: 0,
+  angleMode: 'DEG',
+  precision: 8,
+  history: [],
+  undoStack: [],
+};
+const historyStore = new HistoryStore('lumen_calc_history_v1');
+
+/* ==========================================================================
+   DOM refs
+   ========================================================================== */
+const $ = sel => document.querySelector(sel);
+const expressionEl = $('#expression');
+const resultEl = $('#result');
+const glowBar = $('#glowBar');
+const displayModeEl = $('#displayMode');
+const historyListEl = $('#historyList');
+const toastEl = $('#toast');
+
+/* ==========================================================================
+   MODULE: UI helpers
+   ========================================================================== */
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> toastEl.classList.remove('show'), 1800);
+}
+
+function formatNumber(n){
+  if(!isFinite(n)) return n > 0 ? '∞' : (n < 0 ? '-∞' : 'Error');
+  if(Number.isNaN(n)) return 'Error';
+  const p = state.precision;
+  let s = Math.abs(n) < 1e15 && Math.abs(n) > 1e-10 || n===0
+    ? parseFloat(n.toFixed(p)).toString()
+    : n.toExponential(6);
+  if(s.length > 18 && !s.includes('e')) s = n.toExponential(6);
+  return s;
+}
+
+function updateGlowColor(op){
+  const map = { '+':'var(--accent-a)', '-':'var(--accent-b)', '*':'var(--accent-c)', '/':'var(--accent-d)' };
+  glowBar.style.background = map[op] ? map[op] : 'var(--grad-brand)';
+  glowBar.style.transform = 'scaleX(1)';
+  setTimeout(()=> glowBar.style.transform = 'scaleX(0.3)', 260);
+}
+
+function renderExpression(){
+  expressionEl.textContent = state.expression
+    .replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−').replace(/sqrt/g,'√').replace(/pi/g,'π') || '';
+}
+
+function renderResult(text, isError){
+  resultEl.classList.toggle('error', !!isError);
+  resultEl.innerHTML = '';
+  const span = document.createElement('span');
+  span.className = 'digit-flip';
+  span.textContent = text;
+  resultEl.appendChild(span);
+}
+
+function livePreview(){
+  if(!state.expression){ renderResult('0', false); return; }
+  try{
+    const parser = new MathParser(state.expression, state.angleMode);
+    const v = parser.parse();
+    renderResult(formatNumber(v), false);
+  }catch(e){
+    // keep last valid-looking display quiet during typing
+  }
+}
+
+/* ==========================================================================
+   MODULE: Calculator actions
+   ========================================================================== */
+function pushUndo(){
+  state.undoStack.push(state.expression);
+  if(state.undoStack.length > 50) state.undoStack.shift();
+}
+function insert(str){
+  pushUndo();
+  state.expression += str;
+  renderExpression();
+  livePreview();
+}
+function backspace(){
+  pushUndo();
+  state.expression = state.expression.slice(0, -1);
+  renderExpression();
+  livePreview();
+}
+function allClear(){
+  pushUndo();
+  state.expression = '';
+  renderExpression();
+  renderResult('0', false);
+}
+function clearEntry(){
+  pushUndo();
+  const m = state.expression.match(/(\d+\.?\d*)$/);
+  state.expression = m ? state.expression.slice(0, -m[0].length) : '';
+  renderExpression();
+  livePreview();
+}
+function undo(){
+  if(state.undoStack.length){
+    state.expression = state.undoStack.pop();
+    renderExpression();
+    livePreview();
+  }
+}
+function toggleSign(){
+  pushUndo();
+  const m = state.expression.match(/(-?\d+\.?\d*)$/);
+  if(m){
+    const num = m[0];
+    const toggled = num.startsWith('-') ? num.slice(1) : '-' + num;
+    state.expression = state.expression.slice(0, -num.length) + toggled;
+    renderExpression();
+    livePreview();
+  }
+}
+function percent(){
+  pushUndo();
+  try{
+    const parser = new MathParser(state.expression, state.angleMode);
+    const v = parser.parse();
+    state.expression = formatNumber(v/100);
+    renderExpression();
+    livePreview();
+  }catch(e){}
+}
+function applyUnaryFunc(kind){
+  pushUndo();
+  try{
+    const parser = new MathParser(state.expression || '0', state.angleMode);
+    const v = parser.parse();
+    let r;
+    switch(kind){
+      case 'square': r = v*v; break;
+      case 'cube': r = v*v*v; break;
+      case 'fact': r = MathParser.factorial(v); break;
+      case 'inv': if(v===0) throw new Error('div0'); r = 1/v; break;
+      case 'abs': r = Math.abs(v); break;
+      case 'rand': r = Math.random(); break;
+    }
+    state.expression = formatNumber(r);
+    renderExpression();
+    livePreview();
+  }catch(e){ renderResult('Error', true); }
+}
+function nthRoot(){
+  const val = prompt('Enter the root degree n for ⁿ√x (x = current value):', '3');
+  if(val === null) return;
+  const n = parseFloat(val);
+  if(Number.isNaN(n)) return;
+  pushUndo();
+  try{
+    const parser = new MathParser(state.expression || '0', state.angleMode);
+    const x = parser.parse();
+    const r = Math.sign(x) * Math.pow(Math.abs(x), 1/n);
+    state.expression = formatNumber(r);
+    renderExpression();
+    livePreview();
+  }catch(e){ renderResult('Error', true); }
+}
+function equals(){
+  if(!state.expression) return;
+  try{
+    const parser = new MathParser(state.expression, state.angleMode);
+    const v = parser.parse();
+    const formatted = formatNumber(v);
+    renderResult(formatted, false);
+    const lastOp = (state.expression.match(/[+\-*/]/g) || []).pop();
+    updateGlowColor(lastOp);
+    const entry = historyStore.add(state.expression, formatted);
+    renderHistory();
+    state.lastResult = v;
+    state.expression = formatted;
+    renderExpression();
+  }catch(e){
+    renderResult('Error', true);
+  }
+}
+
+/* Memory */
+function memClear(){ state.memory = 0; updateMemUI(); showToast('Memory cleared'); }
+function memRecall(){ insert(formatNumber(state.memory)); }
+function memAdd(){
+  try{ const v = new MathParser(state.expression||String(state.lastResult||0), state.angleMode).parse(); state.memory += v; updateMemUI(); showToast('Added to memory'); }catch(e){}
+}
+function memSub(){
+  try{ const v = new MathParser(state.expression||String(state.lastResult||0), state.angleMode).parse(); state.memory -= v; updateMemUI(); showToast('Subtracted from memory'); }catch(e){}
+}
+function memStore(){
+  try{ const v = new MathParser(state.expression||String(state.lastResult||0), state.angleMode).parse(); state.memory = v; updateMemUI(); showToast('Stored to memory'); }catch(e){}
+}
+function updateMemUI(){
+  $('#mc').classList.toggle('has-value', state.memory !== 0);
+  $('#mr').classList.toggle('has-value', state.memory !== 0);
+}
+
+/* ==========================================================================
+   MODULE: History rendering
+   ========================================================================== */
+function renderHistory(query){
+  const items = historyStore.search(query || '');
+  historyListEl.innerHTML = '';
+  if(items.length === 0){
+    historyListEl.innerHTML = `<div class="history-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+      <p>No calculations yet.<br>Your history will appear here.</p>
+    </div>`;
+    return;
+  }
+  // pinned first
+  const sorted = [...items].sort((a,b)=> (b.pinned - a.pinned) || (b.ts - a.ts));
+  for(const item of sorted){
+    const div = document.createElement('div');
+    div.className = 'history-item' + (item.pinned ? ' pinned' : '');
+    div.innerHTML = `
+      <div class="h-expr">${escapeHtml(item.expression)}</div>
+      <div class="h-result">${escapeHtml(String(item.result))}</div>
+      <div class="h-actions">
+        <button class="pin-btn" title="Pin" aria-label="Pin calculation">
+          <svg viewBox="0 0 24 24" fill="${item.pinned ? 'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 2l2 7h5l-4 4 2 7-5-4-5 4 2-7-4-4h5z"/></svg>
+        </button>
+        <button class="del-btn" title="Delete" aria-label="Delete calculation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>`;
+    div.addEventListener('click', (e)=>{
+      if(e.target.closest('.h-actions')) return;
+      state.expression = item.expression;
+      renderExpression();
+      livePreview();
+      showToast('Expression restored');
+    });
+    div.querySelector('.pin-btn').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      historyStore.togglePin(item.id);
+      renderHistory($('#historySearch').value);
+    });
+    div.querySelector('.del-btn').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      historyStore.remove(item.id);
+      renderHistory($('#historySearch').value);
+    });
+    historyListEl.appendChild(div);
+  }
+}
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ==========================================================================
+   MODULE: Ripple effect
+   ========================================================================== */
+function attachRipple(el){
+  el.addEventListener('pointerdown', (e)=>{
+    const rect = el.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    const size = Math.max(rect.width, rect.height);
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+    el.appendChild(ripple);
+    setTimeout(()=> ripple.remove(), 600);
+  });
+}
+
+/* ==========================================================================
+   MODULE: Theme + settings
+   ========================================================================== */
+const root = document.documentElement;
+function setThemeMode(mode){
+  root.setAttribute('data-theme', mode);
+  localStorage.setItem('lumen_theme', mode);
+  document.querySelectorAll('[data-theme-mode]').forEach(b=> b.classList.toggle('active', b.dataset.themeMode===mode));
+}
+function setAccent(name){
+  root.setAttribute('data-accent', name);
+  localStorage.setItem('lumen_accent', name);
+  document.querySelectorAll('.swatch').forEach(s=> s.classList.toggle('active', s.dataset.accent===name));
+}
+function setDensity(mode){
+  $('#calculator').classList.toggle('compact', mode==='compact');
+  document.querySelectorAll('[data-density]').forEach(b=> b.classList.toggle('active', b.dataset.density===mode));
+  localStorage.setItem('lumen_density', mode);
+}
+
+/* ==========================================================================
+   INIT — wire everything up
+   ========================================================================== */
+function init(){
+  // restore persisted preferences
+  setThemeMode(localStorage.getItem('lumen_theme') || 'dark');
+  setAccent(localStorage.getItem('lumen_accent') || 'violet');
+  setDensity(localStorage.getItem('lumen_density') || 'cozy');
+  state.precision = parseInt(localStorage.getItem('lumen_precision') || '8', 10);
+  $('#precisionSlider').value = state.precision;
+  $('#precisionVal').textContent = state.precision;
+
+  renderHistory();
+  renderResult('0', false);
+
+  // number / operator / dot keys
+  document.querySelectorAll('.key[data-insert]').forEach(btn=>{
+    attachRipple(btn);
+    btn.addEventListener('click', ()=> insert(btn.dataset.insert));
+  });
+  // scientific panel inserts + funcs
+  document.querySelectorAll('.sci-panel button').forEach(btn=>{
+    attachRipple(btn);
+    btn.addEventListener('click', ()=>{
+      if(btn.dataset.insert) insert(btn.dataset.insert);
+      else if(btn.dataset.func === 'nthroot') nthRoot();
+      else if(btn.dataset.func) applyUnaryFunc(btn.dataset.func);
+    });
+  });
+  // action keys
+  document.querySelectorAll('.key[data-action]').forEach(btn=>{
+    attachRipple(btn);
+    btn.addEventListener('click', ()=>{
+      const a = btn.dataset.action;
+      if(a==='ac') allClear();
+      else if(a==='ce') clearEntry();
+      else if(a==='percent') percent();
+      else if(a==='sign') toggleSign();
+      else if(a==='equals') equals();
+    });
+  });
+
+  // memory
+  $('#mc').addEventListener('click', memClear);
+  $('#mr').addEventListener('click', memRecall);
+  $('#mplus').addEventListener('click', memAdd);
+  $('#mminus').addEventListener('click', memSub);
+  $('#ms').addEventListener('click', memStore);
+
+  // scientific toggle
+  const sciPanel = $('#sciPanel');
+  $('#sciToggle').addEventListener('click', ()=>{
+    const open = sciPanel.classList.toggle('open');
+    $('#sciToggle').classList.toggle('active', open);
+    $('#sciToggle').setAttribute('aria-expanded', open);
+  });
+  // degree/radian toggle
+  $('#degToggle').addEventListener('click', ()=>{
+    state.angleMode = state.angleMode === 'DEG' ? 'RAD' : 'DEG';
+    $('#degToggle').textContent = state.angleMode;
+    displayModeEl.textContent = state.angleMode;
+    livePreview();
+  });
+  $('#undoBtn').addEventListener('click', undo);
+
+  // history sidebar toggle
+  const historyPanel = $('#historyPanel');
+  $('#historyToggle').addEventListener('click', ()=>{
+    historyPanel.classList.toggle('hidden');
+  });
+  $('#historySearch').addEventListener('input', (e)=> renderHistory(e.target.value));
+  $('#clearHistory').addEventListener('click', ()=>{
+    historyStore.clear();
+    renderHistory();
+    showToast('History cleared');
+  });
+  $('#exportHistory').addEventListener('click', ()=>{
+    const blob = new Blob([historyStore.export()], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'lumen-history.json'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('History exported');
+  });
+  $('#importHistory').addEventListener('click', ()=> $('#importFile').click());
+  $('#importFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if(historyStore.import(reader.result)){ renderHistory(); showToast('History imported'); }
+      else showToast('Import failed — invalid file');
+    };
+    reader.readAsText(file);
+  });
+
+  // theme toggle (quick)
+  $('#themeToggle').addEventListener('click', ()=>{
+    const cur = root.getAttribute('data-theme');
+    setThemeMode(cur === 'dark' ? 'light' : 'dark');
+  });
+
+  // settings drawer
+  const drawer = $('#settingsDrawer');
+  const scrim = $('#scrim');
+  function openSettings(){ drawer.classList.add('show'); scrim.classList.add('show'); }
+  function closeSettings(){ drawer.classList.remove('show'); scrim.classList.remove('show'); }
+  $('#settingsToggle').addEventListener('click', openSettings);
+  $('#closeSettings').addEventListener('click', closeSettings);
+  scrim.addEventListener('click', ()=>{ closeSettings(); closeCmdk(); });
+
+  document.querySelectorAll('.swatch').forEach(s=> s.addEventListener('click', ()=> setAccent(s.dataset.accent)));
+  document.querySelectorAll('[data-theme-mode]').forEach(b=> b.addEventListener('click', ()=> setThemeMode(b.dataset.themeMode)));
+  document.querySelectorAll('[data-density]').forEach(b=> b.addEventListener('click', ()=> setDensity(b.dataset.density)));
+  $('#precisionSlider').addEventListener('input', (e)=>{
+    state.precision = parseInt(e.target.value, 10);
+    $('#precisionVal').textContent = state.precision;
+    localStorage.setItem('lumen_precision', state.precision);
+    livePreview();
+  });
+  $('#soundSwitch').addEventListener('click', ()=> toggleSwitch($('#soundSwitch')));
+  $('#hapticSwitch').addEventListener('click', ()=> toggleSwitch($('#hapticSwitch')));
+  function toggleSwitch(el){
+    const on = el.classList.toggle('on');
+    el.setAttribute('aria-checked', on);
+  }
+
+  // command palette
+  const cmdkWrap = $('#cmdkWrap');
+  const cmdkInput = $('#cmdkInput');
+  const cmdkList = $('#cmdkList');
+  const commands = [
+    { label:'Toggle theme', shortcut:'', run:()=> setThemeMode(root.getAttribute('data-theme')==='dark'?'light':'dark') },
+    { label:'Toggle scientific mode', shortcut:'', run:()=> $('#sciToggle').click() },
+    { label:'Clear history', shortcut:'', run:()=>{ historyStore.clear(); renderHistory(); showToast('History cleared'); } },
+    { label:'Export history as JSON', shortcut:'', run:()=> $('#exportHistory').click() },
+    { label:'Toggle history panel', shortcut:'Ctrl+H', run:()=> $('#historyToggle').click() },
+    { label:'Toggle compact mode', shortcut:'', run:()=> setDensity($('#calculator').classList.contains('compact') ? 'cozy':'compact') },
+    { label:'Switch accent — Violet', shortcut:'', run:()=> setAccent('violet') },
+    { label:'Switch accent — Sunset', shortcut:'', run:()=> setAccent('sunset') },
+    { label:'Switch accent — Ocean', shortcut:'', run:()=> setAccent('ocean') },
+    { label:'Switch accent — Rose', shortcut:'', run:()=> setAccent('rose') },
+    { label:'Clear calculation (AC)', shortcut:'Esc', run: allClear },
+    { label:'Copy result', shortcut:'Ctrl+C', run: copyResult },
+    { label:'Open settings', shortcut:'', run:()=> openSettings() },
+  ];
+  function renderCmdk(query){
+    const q = (query||'').toLowerCase();
+    const filtered = commands.filter(c=> c.label.toLowerCase().includes(q));
+    cmdkList.innerHTML = '';
+    filtered.forEach((c,idx)=>{
+      const div = document.createElement('div');
+      div.className = 'cmdk-item' + (idx===0 ? ' sel':'');
+      div.innerHTML = `<span>${c.label}</span>${c.shortcut ? `<kbd>${c.shortcut}</kbd>`:''}`;
+      div.addEventListener('click', ()=>{ c.run(); closeCmdk(); });
+      cmdkList.appendChild(div);
+    });
+  }
+  function openCmdk(){
+    cmdkWrap.classList.add('show'); scrim.classList.add('show');
+    cmdkInput.value=''; renderCmdk(''); setTimeout(()=> cmdkInput.focus(), 50);
+  }
+  function closeCmdk(){ cmdkWrap.classList.remove('show'); scrim.classList.remove('show'); }
+  $('#cmdkToggle').addEventListener('click', openCmdk);
+  cmdkInput.addEventListener('input', (e)=> renderCmdk(e.target.value));
+  cmdkInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      const first = cmdkList.querySelector('.cmdk-item');
+      if(first) first.click();
+    } else if(e.key === 'Escape'){ closeCmdk(); }
+  });
+
+  // copy result
+  function copyResult(){
+    const text = resultEl.textContent;
+    navigator.clipboard?.writeText(text).then(()=> showToast('Result copied')).catch(()=>{});
+  }
+
+  // keyboard shortcuts
+  document.addEventListener('keydown', (e)=>{
+    const meta = e.ctrlKey || e.metaKey;
+    if(meta && e.key.toLowerCase()==='k'){ e.preventDefault(); openCmdk(); return; }
+    if(meta && e.key.toLowerCase()==='h'){ e.preventDefault(); $('#historyToggle').click(); return; }
+    if(meta && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); return; }
+    if(meta && e.key.toLowerCase()==='c' && !window.getSelection().toString()){ e.preventDefault(); copyResult(); return; }
+    if(cmdkWrap.classList.contains('show') || drawer.classList.contains('show')) return;
+
+    if(e.key === 'Enter'){ e.preventDefault(); equals(); }
+    else if(e.key === 'Backspace'){ backspace(); }
+    else if(e.key === 'Escape'){ allClear(); }
+    else if(/^[0-9.]$/.test(e.key)){ insert(e.key); }
+    else if(['+','-','*','/','%','^','(',')'].includes(e.key)){ insert(e.key); }
+  });
+
+  updateMemUI();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
